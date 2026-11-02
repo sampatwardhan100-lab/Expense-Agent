@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expense Agent</title>
+<style>
+:root {
+  --bg: #f8f6f2;
+  --card: #ffffff;
+  --tx: #1c1917;
+  --mu: #78716c;
+  --ac: #0d9488;
+  --ac-lt: #ccfbf1;
+  --bd: #e7e5e4;
+  --danger: #ef4444;
+  --danger-bg: #fee2e2;
+  --ok: #10b981;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121210;
+    --card: #1c1a17;
+    --tx: #f5f5f4;
+    --mu: #a8a29e;
+    --ac: #2dd4bf;
+    --ac-lt: #134e48;
+    --bd: #2e2b27;
+    --danger: #f87171;
+    --danger-bg: #451a1a;
+    --ok: #34d399;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg);
+  color: var(--tx);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 16px 12px 60px;
+  min-height: 100vh;
+}
+main { max-width: 620px; margin: 0 auto; }
+
+/* Header & Status */
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  color: var(--mu);
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mu); transition: background 0.3s; }
+.status-dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.status-dot.err { background: var(--danger); }
+
+/* Common Card */
+.card {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+/* Initial Screen Loader */
+#loadingScreen {
+  text-align: center;
+  padding: 50px 16px;
+  color: var(--mu);
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--bd);
+  border-top-color: var(--ac);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Authentication View */
+.auth-box { max-width: 380px; margin: 20px auto 0; text-align: center; }
+.auth-box h2 { font-size: 20px; margin-bottom: 6px; }
+.auth-box p { font-size: 13px; color: var(--mu); margin-bottom: 18px; }
+.auth-tabs { display: flex; background: var(--bg); border: 1px solid var(--bd); border-radius: 10px; padding: 3px; margin-bottom: 16px; }
+.auth-tab { flex: 1; padding: 7px; font-size: 13px; font-weight: 600; text-align: center; border-radius: 8px; border: 0; background: none; color: var(--mu); cursor: pointer; transition: all 0.2s; }
+.auth-tab.active { background: var(--card); color: var(--tx); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.auth-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.auth-form label { font-size: 12px; font-weight: 600; color: var(--mu); text-transform: uppercase; }
+.auth-form input {
+  font: inherit;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.auth-form input:focus { border-color: var(--ac); }
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--mu);
+}
+.auth-links a { color: var(--ac); text-decoration: none; font-weight: 600; cursor: pointer; }
+.auth-links a:hover { text-decoration: underline; }
+.auth-divider { display: flex; align-items: center; margin: 18px 0 14px; color: var(--mu); font-size: 12px; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid var(--bd); }
+.auth-divider span { padding: 0 10px; }
+.btn-outline { width: 100%; border: 1px solid var(--bd); background: var(--bg); color: var(--tx); font-weight: 600; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+.btn-outline:hover { border-color: var(--ac); background: var(--card); }
+.env-alert { background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 10px 12px; border-radius: 10px; font-size: 12px; text-align: left; margin-bottom: 14px; line-height: 1.4; display: none; }
+@media (prefers-color-scheme: dark) {
+  .env-alert { background: #261f12; border-color: #45361d; color: #fde68a; }
+}
+
+/* Dashboard UI */
+.user-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--mu);
+  margin-top: 2px;
+}
+.user-bar a { color: var(--mu); text-decoration: underline; cursor: pointer; }
+.user-bar a:hover { color: var(--danger); }
+
+.input-row { display: flex; gap: 8px; }
+textarea {
+  flex: 1;
+  font: inherit;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 12px;
+  min-height: 56px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+}
+textarea:focus { border-color: var(--ac); }
+button, select {
+  font: inherit;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s, background 0.2s;
+}
+button.primary { background: var(--ac); color: #fff; border-color: var(--ac); font-weight: 600; }
+button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+button.nav-btn { background: none; border: 0; padding: 4px 8px; font-size: 18px; color: var(--mu); }
+button.btn-sm { font-size: 12px; padding: 5px 10px; }
+.help-txt { font-size: 13px; color: var(--mu); margin-top: 8px; min-height: 18px; }
+
+/* Category Tags / Suggestions */
+.cat-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--bd);
+}
+.cat-pill {
+  font-size: 11px;
+  background: var(--bg);
+  color: var(--mu);
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--bd);
+  user-select: none;
+}
+
+/* Month Total & Selector */
+.top-bar { display: flex; justify-content: space-between; align-items: flex-start; }
+.tot-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mu); display: flex; align-items: center; gap: 4px; }
+.tot-amount { font-size: 32px; font-weight: 700; letter-spacing: -1px; margin-top: 2px; }
+
+/* Category Breakdown Bars */
+.bar { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 9px 0; }
+.bar .cat {
+  width: 130px;
+  flex-shrink: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bar .track { flex: 1; height: 8px; background: var(--ac-lt); border-radius: 4px; overflow: hidden; }
+.bar .track i { display: block; height: 100%; background: var(--ac); border-radius: 4px; transition: width 0.3s; }
+.bar .val { width: 85px; text-align: right; flex-shrink: 0; color: var(--mu); font-variant-numeric: tabular-nums; }
+
+/* 6-Month Trend */
+.section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--mu); }
+.trend-container { display: flex; gap: 8px; margin-top: 8px; }
+.trend-col { flex: 1; text-align: center; font-size: 11px; color: var(--mu); }
+.trend-bar-box { height: 60px; display: flex; align-items: flex-end; margin-bottom: 4px; }
+.trend-bar-box i { width: 100%; border-radius: 4px 4px 0 0; background: var(--ac-lt); min-height: 3px; cursor: pointer; transition: background 0.2s; }
+.trend-bar-box i.active { background: var(--ac); }
+
+/* Entries List */
+.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.item { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-top: 1px solid var(--bd); }
+.item:first-child { border-top: 0; }
+.item-info { flex: 1; min-width: 0; padding-right: 12px; }
+.item-info b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-info span { font-size: 12px; color: var(--mu); }
+.item-amount { font-weight: 600; font-size: 15px; margin-right: 10px; font-variant-numeric: tabular-nums; }
+.btn-del { background: none; border: 0; color: var(--mu); padding: 6px 10px; font-size: 16px; cursor: pointer; border-radius: 6px; }
+.btn-del:hover { color: var(--danger); background: var(--danger-bg); }
+.empty-state { text-align: center; padding: 26px 0; color: var(--mu); font-size: 14px; }
+
+/* In-App Confirmation Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; z-index: 999; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+.modal-box {
+  background: var(--card); border: 1px solid var(--bd); border-radius: 14px;
+  padding: 20px; width: 100%; max-width: 340px; text-align: center;
+}
+.modal-box h3 { font-size: 17px; margin-bottom: 6px; }
+.modal-box p { font-size: 13px; color: var(--mu); margin-bottom: 18px; }
+.modal-actions { display: flex; gap: 8px; }
+.modal-actions button { flex: 1; }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); font-weight: 600; }
+
+/* In-App Toast */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(70px);
+  background: var(--card); color: var(--tx); border: 1px solid var(--bd);
+  border-radius: 30px; padding: 9px 18px; font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12); opacity: 0; pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); z-index: 1000;
+}
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <!-- INITIAL SESSION CHECKER WITH TIMEOUT -->
+  <div id="loadingScreen">
+    <div class="spinner"></div>
+    <p id="loadingMsg">Preparing Expense Agent…</p>
+  </div>
+
+  <!-- AUTHENTICATION VIEW -->
+  <div id="authSection" class="card auth-box" style="display: none;">
+    <div id="envAlert" class="env-alert">
+      <strong>Running from local file (file://):</strong> Firebase login requires hosting (e.g. GitHub Pages). You can click <b>"Use Local Mode"</b> below to start tracking expenses immediately!
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabSignIn" type="button">Sign In</button>
+      <button class="auth-tab" id="tabSignUp" type="button">Create Account</button>
+    </div>
+
+    <h2 id="authHeading">Sign In</h2>
+    <p id="authSubheading">Enter your email and password to sync across devices.</p>
+
+    <form class="auth-form" id="authForm" onsubmit="return false;">
+      <div>
+        <label>Email</label>
+        <input type="email" id="authEmail" required autocomplete="email" placeholder="name@domain.com">
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" placeholder="At least 6 characters">
+      </div>
+      <button type="submit" class="primary" id="authSubmitBtn" style="margin-top: 6px;">Sign In</button>
+    </form>
+    
+    <div class="help-txt" id="authError" style="color: var(--danger); margin-top: 8px;"></div>
+    
+    <div class="auth-links" id="forgotPassRow">
+      <a id="forgotPasswordBtn">Forgot password?</a>
+    </div>
+
+    <div class="auth-divider">
+      <span>OR</span>
+    </div>
+
+    <button type="button" class="btn-outline" id="localModeBtn">
+      ⚡ Continue in Local Mode (No Account Needed)
+    </button>
+  </div>
+
+  <!-- MAIN EXPENSE DASHBOARD -->
+  <div id="appSection" style="display: none;">
+    <div class="header-row">
+      <div>
+        <h1>Expense Agent</h1>
+        <div class="user-bar">
+          <span id="userEmailDisplay"></span>
+          <span>•</span>
+          <a id="signOutBtn">Sign Out</a>
+        </div>
+      </div>
+      <div class="status-pill">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusTxt">Connecting…</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="input-row">
+        <textarea id="expInput" placeholder="e.g. Lunch 450, cab 220, gym 1500, Netflix 649, SIP 5k yesterday via UPI"></textarea>
+        <button class="primary" id="addBtn">Add</button>
+      </div>
+      <div class="help-txt" id="helpMsg"></div>
+      
+      <div class="cat-pills" id="catPills"></div>
+    </div>
+
+    <div class="card">
+      <div class="top-bar">
+        <div>
+          <div class="tot-label">
+            <button class="nav-btn" id="prevMonth" title="Previous Month">‹</button>
+            <span id="monthLabel"></span>
+            <button class="nav-btn" id="nextMonth" title="Next Month">›</button>
+          </div>
+          <div class="tot-amount" id="totalDisplay">0</div>
+        </div>
+        <select id="curSelector" title="Select Currency">
+          <option value="₹">₹ INR</option>
+          <option value="$">$ USD</option>
+          <option value="€">€ EUR</option>
+          <option value="£">£ GBP</option>
+          <option value="AED">AED</option>
+        </select>
+      </div>
+      <div id="catBreakdown" style="margin-top: 14px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Last 6 Months</div>
+      <div class="trend-container" id="trendContainer"></div>
+    </div>
+
+    <div class="card">
+      <div class="list-header">
+        <span class="section-title">This Month’s Entries</span>
+        <div style="display: flex; gap: 6px;">
+          <button id="btnCsv" class="btn-sm">CSV</button>
+          <button id="btnBackup" class="btn-sm">Backup</button>
+          <button id="btnRestore" class="btn-sm">Restore</button>
+        </div>
+      </div>
+      <div id="expenseList"></div>
+      <input type="file" id="fileInput" accept=".json" style="display: none;">
+    </div>
+  </div>
+</main>
+
+<div id="deleteModal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>Delete Expense</h3>
+    <p id="deleteDesc">Are you sure you want to remove this entry?</p>
+    <div class="modal-actions">
+      <button id="cancelDelBtn">Cancel</button>
+      <button id="confirmDelBtn" class="btn-danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+  const $ = id => document.getElementById(id);
+  const isFileProtocol = window.location.protocol === "file:";
+
+  let auth = null;
+  let db = null;
+  let currentUser = null;
+  let unsubscribeSnapshot = null;
+  let isSignUpMode = false;
+  let isLocalMode = false;
+  let itemToDeleteId = null;
+  let S = { items: [], cur: "₹" };
+
+  const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const parseMonth = m => new Date(m + "-01T00:00:00");
+  let viewMonth = iso(new Date()).slice(0, 7);
+  const fmt = n => S.cur + " " + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+  const CAT_ICONS = {
+    "Food": "🍔", "Groceries": "🛒", "Transport": "🚕", "Shopping": "🛍️",
+    "Subscriptions": "📱", "Bills": "💡", "Health": "💊", "Entertainment": "🎬",
+    "Travel": "✈️", "Education": "📚", "Investments": "📈", "Personal Care": "✨",
+    "Home": "🏡", "Gifts & Charity": "🎁", "Pets": "🐾", "Other": "🏷️"
+  };
+
+  const KW = {
+    Subscriptions: /netflix|spotify|youtube|hotstar|prime video|amazon prime|icloud|apple music|chatgpt|openai|hulu|disney|patreon|discord|subscription|saas|github|audible/i,
+    Investments: /sip|mutual fund|stock|stocks|share|shares|zerodha|groww|crypto|bitcoin|eth|gold|deposit|fd|rd|trading|etf|equity/i,
+    Education: /course|udemy|coursera|books|book|tuition|school|college|exam|coaching|cert|bootcamp|training|kindle|stationery|pen|pencil|notes/i,
+    Personal Care: /salon|haircut|barber|spa|massage|skincare|cosmetics|makeup|facial|perfume|grooming|waxing|shaving|shampoo/i,
+    Home: /furniture|repair|plumber|electrician|appliance|cleaning|laundry|dry clean|decor|hardware|pest|kitchen|ikea|utensil/i,
+    Gifts & Charity: /gift|charity|donation|donate|tip|temple|church|mosque|ngo|present|birthday gift|anniversary/i,
+    Pets: /pet|dog|cat|vet|veterinary|puppy|kitten|pet food|pedigree|whiskas|litter/i,
+    Health: /doctor|medicine|pharmacy|hospital|gym|fitness|workout|medical|clinic|protein|dentist|tablet|therapy|test|pathology|blood test|apollo/i,
+    Entertainment: /movie|cinema|theatre|concert|game|gaming|steam|playstation|xbox|event|party|club|pub|bowling|amusement/i,
+    Travel: /flight|hotel|airbnb|resort|vacation|trip|tour|visa|airfare|hostel|luggage|makemytrip|goibibo/i,
+    Groceries: /grocer|vegetable|veggie|fruit|milk|supermarket|bigbasket|blinkit|zepto|ration|dal|rice|bread|instamart|pantry|egg|chicken|meat|fish/i,
+    Transport: /cab|uber|ola|taxi|bus|metro|train|fuel|petrol|diesel|parking|auto|toll|rickshaw|rapido|fastag|cng/i,
+    Shopping: /shirt|shoes|clothes|shopping|mall|jeans|pants|apparel|electronics|gadget|amazon|flipkart|myntra|zara|h&m|dress|tshirt/i,
+    Bills: /rent|electric|electricity|power|wifi|broadband|internet|recharge|emi|insurance|water bill|gas bill|piped gas|maintenance|society/i,
+    Food: /lunch|dinner|breakfast|coffee|tea|cafe|restaurant|snack|pizza|swiggy|zomato|meal|biryani|burger|eat|drinks|bakery|dessert|takeout|starbucks|chai/i
+  };
+
+  function renderCategoryPills() {
+    const container = $("catPills");
+    if (!container) return;
+    container.innerHTML = Object.entries(CAT_ICONS)
+      .map(([name, icon]) => `<span class="cat-pill">${icon} ${name}</span>`)
+      .join("");
+  }
+  renderCategoryPills();
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  function showToast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove("show"), 2400);
+  }
+
+  function loadLocalDb() {
+    try {
+      const data = localStorage.getItem("exp_agent_db");
+      if (data) S = JSON.parse(data);
+    } catch (e) {}
+  }
+  function saveLocalDb() {
+    try {
+      localStorage.setItem("exp_agent_db", JSON.stringify(S));
+    } catch (e) {}
+  }
+  loadLocalDb();
+
+  function setAuthMode(signUp) {
+    isSignUpMode = signUp;
+    $("tabSignIn").classList.toggle("active", !signUp);
+    $("tabSignUp").classList.toggle("active", signUp);
+    $("authHeading").textContent = signUp ? "Create Account" : "Sign In";
+    $("authSubheading").textContent = signUp ? "Create a login to sync expenses to your Firebase project." : "Enter your email and password to sync your expenses.";
+    $("authSubmitBtn").textContent = signUp ? "Create Account" : "Sign In";
+    $("forgotPassRow").style.display = signUp ? "none" : "flex";
+    $("authError").textContent = "";
+  }
+  $("tabSignIn").onclick = () => setAuthMode(false);
+  $("tabSignUp").onclick = () => setAuthMode(true);
+
+  function enterLocalMode() {
+    isLocalMode = true;
+    $("loadingScreen").style.display = "none";
+    $("authSection").style.display = "none";
+    $("appSection").style.display = "block";
+    $("userEmailDisplay").textContent = "Local Storage (Offline)";
+    $("statusDot").className = "status-dot ok";
+    $("statusTxt").textContent = "Saved Locally";
+    render();
+    showToast("Working in Local Storage mode");
+  }
+  $("localModeBtn").onclick = enterLocalMode;
+
+  async function initFirebase() {
+    if (isFileProtocol) {
+      $("loadingScreen").style.display = "none";
+      $("authSection").style.display = "block";
+      $("envAlert").style.display = "block";
+      return;
+    }
+
+    try {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js");
+      const { 
+        getAuth, 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword, 
+        sendPasswordResetEmail,
+        signOut, 
+        onAuthStateChanged 
+      } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js");
+      const { 
+        getFirestore, 
+        collection, 
+        addDoc, 
+        deleteDoc, 
+        doc, 
+        onSnapshot 
+      } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js");
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDxRmd1fasxTLOlKgLlDqKJevIDOLI8XoI",
+        authDomain: "expense-agent-15e80.firebaseapp.com",
+        projectId: "expense-agent-15e80",
+        storageBucket: "expense-agent-15e80.firebasestorage.app",
+        messagingSenderId: "797719566536",
+        appId: "1:797719566536:web:f52107f082907a860bedfd"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+
+      onAuthStateChanged(auth, user => {
+        $("loadingScreen").style.display = "none";
+        currentUser = user;
+        if (user) {
+          isLocalMode = false;
+          $("authSection").style.display = "none";
+          $("appSection").style.display = "block";
+          $("userEmailDisplay").textContent = user.email;
+          bindFirestore(user.uid, collection, onSnapshot);
+        } else {
+          if (!isLocalMode) {
+            $("authSection").style.display = "block";
+            $("appSection").style.display = "none";
+          }
+        }
+      });
+
+      $("authForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const email = $("authEmail").value.trim();
+        const password = $("authPassword").value;
+        $("authSubmitBtn").disabled = true;
+        $("authError").textContent = "";
+
+        try {
+          if (isSignUpMode) {
+            await createUserWithEmailAndPassword(auth, email, password);
+            showToast("Account created successfully!");
+          } else {
+            await signInWithEmailAndPassword(auth, email, password);
+          }
+        } catch (err) {
+          $("authError").textContent = formatAuthError(err);
+        } finally {
+          $("authSubmitBtn").disabled = false;
+        }
+      };
+
+      $("forgotPasswordBtn").onclick = async () => {
+        const email = $("authEmail").value.trim();
+        if (!email) {
+          $("authError").textContent = "Enter your email address above, then click Forgot Password.";
+          $("authEmail").focus();
+          return;
+        }
+        try {
+          await sendPasswordResetEmail(auth, email);
+          showToast("Password reset email sent!");
+        } catch (err) {
+          $("authError").textContent = formatAuthError(err);
+        }
+      };
+
+      $("signOutBtn").onclick = () => {
+        if (isLocalMode) {
+          $("appSection").style.display = "none";
+          $("authSection").style.display = "block";
+        } else if (auth) {
+          signOut(auth);
+        }
+      };
+
+    } catch (err) {
+      console.warn("Firebase initialization skipped or failed:", err);
+      $("loadingScreen").style.display = "none";
+      $("authSection").style.display = "block";
+      $("envAlert").style.display = "block";
+      $("envAlert").textContent = "Network or browser blocked cloud connection. You can use Local Mode below without interruption.";
+    }
+  }
+
+  function formatAuthError(err) {
+    const code = err.code || "";
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+      return "Incorrect email or password. If you haven't created an account yet, click the 'Create Account' tab above.";
+    }
+    if (code === "auth/email-already-in-use") {
+      return "This email is already registered. Please click 'Sign In'.";
+    }
+    if (code === "auth/weak-password") {
+      return "Password should be at least 6 characters.";
+    }
+    if (code === "auth/unauthorized-domain") {
+      return "This domain is not authorized in your Firebase Console. Go to Authentication > Settings > Authorized domains to add it, or use Local Mode below.";
+    }
+    if (code === "auth/operation-not-supported-in-this-environment") {
+      return "Authentication is not supported when opened as a local file (file://). Please use Local Mode below or host on GitHub Pages.";
+    }
+    return err.message.replace("Firebase: ", "");
+  }
+
+  function bindFirestore(uid, collectionFn, onSnapshotFn) {
+    const userExpensesRef = collectionFn(db, "users", uid, "expenses");
+    $("statusDot").className = "status-dot";
+    $("statusTxt").textContent = "Syncing…";
+
+    if (unsubscribeSnapshot) unsubscribeSnapshot();
+
+    unsubscribeSnapshot = onSnapshotFn(userExpensesRef, snapshot => {
+      const cloudItems = [];
+      snapshot.forEach(docSnap => cloudItems.push({ id: docSnap.id, ...docSnap.data() }));
+      cloudItems.sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0));
+      S.items = cloudItems;
+      saveLocalDb();
+      $("statusDot").className = "status-dot ok";
+      $("statusTxt").textContent = "Cloud Synced";
+      render();
+    }, err => {
+      console.error("Firestore error:", err);
+      $("statusDot").className = "status-dot err";
+      $("statusTxt").textContent = err.code === "permission-denied" ? "Rules Blocked" : "Sync Error";
+    });
+  }
+
+  function parseExpenseText(text) {
+    let baseDate = iso(new Date());
+    if (/day before yesterday/i.test(text)) {
+      const d = new Date(); d.setDate(d.getDate() - 2); baseDate = iso(d);
+    } else if (/yesterday/i.test(text)) {
+      const d = new Date(); d.setDate(d.getDate() - 1); baseDate = iso(d);
+    }
+
+    let defaultPay = "";
+    if (/upi|gpay|phonepe|paytm/i.test(text)) defaultPay = "UPI";
+    else if (/card|credit|debit/i.test(text)) defaultPay = "Card";
+    else if (/cash/i.test(text)) defaultPay = "Cash";
+
+    const parts = text.split(/\s*(?:,|\band\b|\n|;)\s*/i).filter(Boolean);
+    const results = [];
+
+    for (const part of parts) {
+      const m = part.match(/(\d[\d,]*(?:\.\d+)?)\s*(k)?/i);
+      if (!m) continue;
+      let amt = parseFloat(m[1].replace(/,/g, ""));
+      if (m[2]) amt *= 1000;
+      if (!amt || isNaN(amt)) continue;
+
+      let itemPay = defaultPay;
+      if (/upi|gpay|phonepe|paytm/i.test(part)) itemPay = "UPI";
+      else if (/card|credit|debit/i.test(part)) itemPay = "Card";
+      else if (/cash/i.test(part)) itemPay = "Cash";
+
+      let itemDate = baseDate;
+      if (/day before yesterday/i.test(part)) {
+        const d = new Date(); d.setDate(d.getDate() - 2); itemDate = iso(d);
+      } else if (/yesterday/i.test(part)) {
+        const d = new Date(); d.setDate(d.getDate() - 1); itemDate = iso(d);
+      } else if (/today/i.test(part)) {
+        itemDate = iso(new Date());
+      }
+
+      let desc = part
+        .replace(m[0], "")
+        .replace(/\b(today|yesterday|day before yesterday|spent|on|for|paid|via|by|rs|inr|upi|gpay|cash|card)\b|[₹$€£]/gi, "")
+        .trim() || "Expense";
+
+      desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+
+      let cat = "Other";
+      for (const c in KW) {
+        if (KW[c].test(part)) { cat = c; break; }
+      }
+
+      results.push({
+        amount: Math.round(amt * 100) / 100,
+        category: cat,
+        description: desc.slice(0, 50),
+        payment: itemPay,
+        date: itemDate,
+        createdAt: Date.now()
+      });
+    }
+    return results;
+  }
+
+  async function handleAdd() {
+    const val = $("expInput").value.trim();
+    if (!val) return;
+
+    $("addBtn").disabled = true;
+    $("helpMsg").textContent = "Processing…";
+
+    const parsed = parseExpenseText(val);
+    if (!parsed.length) {
+      $("helpMsg").textContent = "Couldn't detect an amount. Example: 'Lunch 350, gym 1500, Netflix 649'";
+      $("addBtn").disabled = false;
+      return;
+    }
+
+    if (!isLocalMode && currentUser && db) {
+      try {
+        const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js");
+        const userExpensesRef = collection(db, "users", currentUser.uid, "expenses");
+        for (const item of parsed) {
+          await addDoc(userExpensesRef, item);
+        }
+      } catch (err) {
+        console.error("Cloud save failed, falling back to local:", err);
+        parsed.forEach(item => S.items.unshift({ id: "local_" + Date.now() + Math.random(), ...item }));
+        saveLocalDb();
+      }
+    } else {
+      parsed.forEach(item => S.items.unshift({ id: "local_" + Date.now() + Math.random(), ...item }));
+      saveLocalDb();
+    }
+
+    $("expInput").value = "";
+    $("addBtn").disabled = false;
+    $("helpMsg").textContent = `Saved ${parsed.length} expense${parsed.length > 1 ? "s" : ""}!`;
+    showToast(`✓ Saved ${parsed.length} expense${parsed.length > 1 ? "s" : ""}`);
+    viewMonth = parsed[0].date.slice(0, 7);
+    render();
+    setTimeout(() => { $("helpMsg").textContent = ""; }, 2500);
+  }
+
+  function openDeleteModal(id) {
+    const item = S.items.find(x => x.id === id);
+    if (!item) return;
+    itemToDeleteId = id;
+    const icon = CAT_ICONS[item.category] || "🏷️";
+    $("deleteDesc").textContent = `Remove ${icon} "${item.description}" (${fmt(item.amount)})?`;
+    $("deleteModal").classList.add("open");
+  }
+
+  function closeDeleteModal() {
+    $("deleteModal").classList.remove("open");
+    itemToDeleteId = null;
+  }
+
+  $("cancelDelBtn").onclick = closeDeleteModal;
+  $("deleteModal").onclick = e => { if (e.target === $("deleteModal")) closeDeleteModal(); };
+
+  $("confirmDelBtn").onclick = async () => {
+    if (!itemToDeleteId) return;
+    const id = itemToDeleteId;
+    closeDeleteModal();
+
+    if (!isLocalMode && currentUser && db && !String(id).startsWith("local_")) {
+      try {
+        const { doc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js");
+        await deleteDoc(doc(db, "users", currentUser.uid, "expenses", id));
+      } catch (err) {
+        console.error("Cloud delete failed:", err);
+      }
+    }
+    S.items = S.items.filter(i => i.id !== id);
+    saveLocalDb();
+    render();
+    showToast("Expense removed");
+  };
+
+  function render() {
+    $("curSelector").value = S.cur;
+    $("monthLabel").textContent = parseMonth(viewMonth).toLocaleString(undefined, { month: "long", year: "numeric" });
+
+    const monthItems = S.items.filter(i => (i.date || "").startsWith(viewMonth));
+    const total = monthItems.reduce((acc, i) => acc + (Number(i.amount) || 0), 0);
+    $("totalDisplay").textContent = fmt(total);
+
+    const byCat = {};
+    monthItems.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + Number(i.amount); });
+    const sortedCats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    const maxCatVal = sortedCats.length ? sortedCats[0][1] : 1;
+
+    $("catBreakdown").innerHTML = sortedCats.length
+      ? sortedCats.map(([c, v]) => `
+          <div class="bar">
+            <span class="cat" title="${escapeHtml(c)}">
+              <span>${CAT_ICONS[c] || "🏷️"}</span>
+              <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(c)}</span>
+            </span>
+            <span class="track"><i style="width: ${(v / maxCatVal) * 100}%"></i></span>
+            <span class="val">${fmt(v)}</span>
+          </div>`).join("")
+      : '<div style="color:var(--mu);font-size:13px;padding:6px 0;">No expenses logged for this month yet.</div>';
+
+    const months = [];
+    for (let k = 5; k >= 0; k--) {
+      const d = parseMonth(viewMonth);
+      d.setMonth(d.getMonth() - k);
+      months.push(iso(d).slice(0, 7));
+    }
+    const trendTotals = months.map(m => S.items.filter(i => (i.date || "").startsWith(m)).reduce((a, b) => a + (Number(b.amount) || 0), 0));
+    const maxTrend = Math.max(...trendTotals, 1);
+
+    $("trendContainer").innerHTML = months.map((m, idx) => `
+      <div class="trend-col">
+        <div class="trend-bar-box">
+          <i class="${m === viewMonth ? 'active' : ''}" style="height: ${Math.max((trendTotals[idx] / maxTrend) * 100, 4)}%" data-m="${m}"></i>
+        </div>
+        ${parseMonth(m).toLocaleString(undefined, { month: "short" })}
+      </div>
+    `).join("");
+
+    document.querySelectorAll(".trend-bar-box i").forEach(el => {
+      el.onclick = () => { viewMonth = el.dataset.m; render(); };
+    });
+
+    const listEl = $("expenseList");
+    if (!monthItems.length) {
+      listEl.innerHTML = '<div class="empty-state">No entries for this month. Type an expense above!</div>';
+      return;
+    }
+
+    listEl.innerHTML = "";
+    monthItems.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "item";
+      const icon = CAT_ICONS[item.category] || "🏷️";
+      const tags = [`${icon} ${escapeHtml(item.category)}`, escapeHtml(item.payment), escapeHtml(item.date)].filter(Boolean).join(" · ");
+      row.innerHTML = `
+        <div class="item-info">
+          <b>${escapeHtml(item.description)}</b>
+          <span>${tags}</span>
+        </div>
+        <div class="item-amount">${fmt(item.amount)}</div>
+        <button class="btn-del" title="Delete entry" aria-label="Delete">×</button>
+      `;
+      row.querySelector(".btn-del").onclick = () => openDeleteModal(item.id);
+      listEl.appendChild(row);
+    });
+  }
+
+  function shiftMonth(n) {
+    const d = parseMonth(viewMonth);
+    d.setMonth(d.getMonth() + n);
+    viewMonth = iso(d).slice(0, 7);
+    render();
+  }
+
+  $("prevMonth").onclick = () => shiftMonth(-1);
+  $("nextMonth").onclick = () => shiftMonth(1);
+
+  $("addBtn").onclick = handleAdd;
+  $("expInput").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAdd();
+    }
+  });
+
+  $("curSelector").onchange = e => {
+    S.cur = e.target.value;
+    saveLocalDb();
+    render();
+    showToast(`Currency changed to ${S.cur}`);
+  };
+
+  const downloadBlob = (filename, content, type) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  $("btnCsv").onclick = () => {
+    if (!S.items.length) { showToast("No expenses to export."); return; }
+    const q = s => `"${String(s || '').replace(/"/g, '""')}"`;
+    const rows = [
+      ["Date", "Category", "Description", "Payment", "Amount"],
+      ...S.items.map(i => [i.date, i.category, q(i.description), i.payment || "", i.amount])
+    ];
+    downloadBlob(`expenses_${viewMonth}.csv`, rows.map(r => r.join(",")).join("\n"), "text/csv");
+    showToast("CSV downloaded");
+  };
+
+  $("btnBackup").onclick = () => {
+    if (!S.items.length) { showToast("No expenses to backup."); return; }
+    downloadBlob("expenses_backup.json", JSON.stringify(S.items, null, 2), "application/json");
+    showToast("Backup file downloaded");
+  };
+
+  $("btnRestore").onclick = () => $("fileInput").click();
+  $("fileInput").onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const items = JSON.parse(await file.text());
+      if (Array.isArray(items)) {
+        if (!isLocalMode && currentUser && db) {
+          const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js");
+          const userExpensesRef = collection(db, "users", currentUser.uid, "expenses");
+          for (const item of items) {
+            const { id, ...data } = item;
+            await addDoc(userExpensesRef, data);
+          }
+        } else {
+          S.items = items;
+          saveLocalDb();
+          render();
+        }
+        showToast(`Restored ${items.length} items`);
+      }
+    } catch (err) {
+      console.error("Restore failed:", err);
+      showToast("Invalid backup JSON file.");
+    }
+    e.target.value = "";
+  };
+
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeDeleteModal();
+  });
+
+  initFirebase();
+</script>
+</body>
+</html>
