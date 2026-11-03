@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#07090e">
   <title>Fiscc — Minimal Daily Log</title>
   
   <!-- Tailwind CSS CDN -->
@@ -43,14 +46,14 @@
       --text-faint: #525a70;
       --border-subtle: rgba(255, 255, 255, 0.07);
       --border-highlight: rgba(255, 255, 255, 0.16);
-      --accent: #10b981;
-      --accent-hover: #34d399;
-      --accent-soft: rgba(16, 185, 129, 0.12);
+      --accent: #006466;
+      --accent-hover: #065a60;
+      --accent-soft: rgba(0, 100, 102, 0.16);
       --gold: #d4af37;
       --gold-soft: rgba(212, 175, 55, 0.14);
       --danger: #ef4444;
       --danger-soft: rgba(239, 68, 68, 0.12);
-      --glass-glow: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
+      --glass-glow: radial-gradient(circle at 50% 0%, rgba(0, 100, 102, 0.08) 0%, transparent 60%);
     }
 
     [data-theme="white"] {
@@ -64,14 +67,14 @@
       --text-faint: #989eaf;
       --border-subtle: #e4e6eb;
       --border-highlight: #c8cbd4;
-      --accent: #059669;
-      --accent-hover: #047857;
-      --accent-soft: rgba(5, 150, 105, 0.10);
+      --accent: #0b525b;
+      --accent-hover: #003f47;
+      --accent-soft: rgba(11, 82, 91, 0.10);
       --gold: #b48a1c;
       --gold-soft: rgba(180, 138, 28, 0.12);
       --danger: #dc2626;
       --danger-soft: #fee2e2;
-      --glass-glow: radial-gradient(circle at 50% 0%, rgba(5, 150, 105, 0.03) 0%, transparent 60%);
+      --glass-glow: radial-gradient(circle at 50% 0%, rgba(11, 82, 91, 0.03) 0%, transparent 60%);
     }
 
     [data-theme="cream"] {
@@ -85,14 +88,14 @@
       --text-faint: #a69f94;
       --border-subtle: #e2dbce;
       --border-highlight: #cfc6b5;
-      --accent: #2e6b56;
-      --accent-hover: #225141;
-      --accent-soft: rgba(46, 107, 86, 0.12);
+      --accent: #1b4965;
+      --accent-hover: #133a52;
+      --accent-soft: rgba(27, 73, 101, 0.12);
       --gold: #aa7c11;
       --gold-soft: rgba(170, 124, 17, 0.12);
       --danger: #c0392b;
       --danger-soft: #fadbd8;
-      --glass-glow: radial-gradient(circle at 50% 0%, rgba(46, 107, 86, 0.04) 0%, transparent 60%);
+      --glass-glow: radial-gradient(circle at 50% 0%, rgba(27, 73, 101, 0.04) 0%, transparent 60%);
     }
 
     [data-theme="slate"] {
@@ -146,6 +149,14 @@
       padding-left: max(12px, env(safe-area-inset-left));
       padding-right: max(12px, env(safe-area-inset-right));
       transition: background-color 0.25s ease, color 0.25s ease;
+      touch-action: manipulation;
+    }
+
+    /* PREVENT MOBILE ZOOM ON FOCUS (iOS Safari auto-zooms inputs under 16px) */
+    @media screen and (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
     }
 
     .fiscc-card {
@@ -230,12 +241,37 @@
       z-index: 1050;
     }
     #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* App Lock Overlay Screen */
+    #app-lock-screen {
+      position: fixed; inset: 0;
+      background: var(--bg-base);
+      z-index: 2000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    #app-lock-screen.active {
+      opacity: 1; pointer-events: auto;
+    }
+
+    /* Logo Mark Styling (Clean, Pure Symbol Only) */
+    .fiscc-logo-symbol {
+      width: 44px;
+      height: 48px;
+      display: inline-block;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .fiscc-logo-symbol:hover {
+      transform: scale(1.05);
+    }
   </style>
 </head>
 
-<body class="font-sans antialiased min-h-screen selection:bg-emerald-500/20 relative overflow-x-hidden pb-16">
+<body class="font-sans antialiased min-h-screen selection:bg-teal-500/20 relative overflow-x-hidden pb-16">
 
-  <!-- Ambient Ambient Glow Background -->
+  <!-- Ambient Glow Background -->
   <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[380px] pointer-events-none -z-10" style="background: var(--glass-glow); filter: blur(80px);"></div>
 
   <!-- Toast Element -->
@@ -244,39 +280,98 @@
     <span id="toast-text">Message</span>
   </div>
 
+  <!-- =====================================================================
+       APP LOCK FULL SCREEN (Face ID / Biometrics & PIN)
+       ===================================================================== -->
+  <div id="app-lock-screen">
+    <div class="max-w-xs w-full text-center space-y-5">
+      <!-- Pure Vector Logo Emblem in Lockscreen with Brand Text Lockup -->
+      <div class="flex flex-col items-center justify-center gap-2 mb-1">
+        <svg class="w-14 h-16" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Document Shield Outline -->
+          <path d="M22 14H68L84 30V68L50 96L16 68V20L22 14Z" stroke="currentColor" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" style="color: var(--accent);"/>
+          <!-- Top Right Fold Notch -->
+          <path d="M68 14V30H84" stroke="currentColor" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" style="color: var(--accent);"/>
+          <!-- Bold Checkmark / Upward Vector Inside -->
+          <path d="M16 48L30 62L62 30H46" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"/>
+          <path d="M46 30V44" stroke="currentColor" stroke-width="7" stroke-linecap="round" style="color: var(--accent);"/>
+          <!-- Inner Transaction / Flow Arrow 1 -->
+          <circle cx="50" cy="48" r="3.5" fill="currentColor" style="color: var(--accent);"/>
+          <path d="M57 48H72M72 48L66 43M72 48L66 53" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"/>
+          <!-- Inner Transaction / Flow Arrow 2 -->
+          <circle cx="45" cy="65" r="3.5" fill="currentColor" style="color: var(--accent);"/>
+          <path d="M52 65H68M68 65L62 60M68 65L62 70" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"/>
+        </svg>
+        <div class="text-center">
+          <h2 class="text-base font-semibold tracking-tight" style="color: var(--text-main)">Fiscc: Minimal Daily Log</h2>
+          <p class="text-xs font-medium" style="color: var(--text-muted)">Type naturally. Track instantly.</p>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <p class="text-xs" style="color: var(--text-faint)">Authenticate to access your financial ledger</p>
+      </div>
+
+      <!-- Biometric Face ID / Touch ID Button -->
+      <div id="lock-biometric-section" class="hidden">
+        <button id="btn-unlock-biometric" class="w-full py-2.5 px-4 rounded-xl font-medium text-xs flex items-center justify-center gap-2 border transition hover:scale-[1.02] active:scale-95 shadow" style="background: var(--bg-surface); border-color: var(--border-highlight); color: var(--text-main)">
+          <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+          </svg>
+          <span>Unlock with Face ID / Touch ID</span>
+        </button>
+        <div class="relative my-3 text-[11px]" style="color: var(--text-faint)">
+          <span class="px-2" style="background: var(--bg-base)">or enter PIN</span>
+        </div>
+      </div>
+
+      <!-- PIN / Password Fallback Form -->
+      <form id="lock-pin-form" class="space-y-3" onsubmit="return false;">
+        <input type="password" id="lock-pin-input" class="w-full text-center tracking-[0.3em] font-mono text-base p-2.5 rounded-xl" placeholder="••••" autocomplete="current-password">
+        <button type="submit" id="btn-unlock-pin" class="w-full py-2.5 rounded-xl font-semibold text-xs text-white transition active:scale-95 shadow" style="background: var(--accent)">
+          Unlock
+        </button>
+      </form>
+      <p id="lock-error-msg" class="text-xs text-rose-400 empty:hidden"></p>
+    </div>
+  </div>
+
   <!-- Main Container -->
   <main class="max-w-4xl lg:max-w-5xl mx-auto px-2 sm:px-6 py-4 sm:py-8 space-y-5 sm:space-y-6">
 
     <!-- =====================================================================
-         1. FISCC BRAND HEADER & NAVIGATION (v2.3 Supports Custom logo.png)
+         1. FISCC BRAND HEADER & NAVIGATION (v3.2 Logo & Brand Typography)
          ===================================================================== -->
     <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b" style="border-color: var(--border-subtle)">
-      <!-- Official Logo Lockup -->
+      <!-- Logo Emblem with Brand Name & Tagline Lockup -->
       <div class="flex items-center gap-3">
-        <!-- Brand Logo Icon: Supports external logo.png with smart SVG fallback -->
-        <div class="h-11 w-11 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center p-1.5 shadow-sm border shrink-0 transition-transform duration-200 hover:scale-105 overflow-hidden" style="background: var(--bg-surface); border-color: var(--border-highlight)">
-          <!-- When you upload logo.png to GitHub next to index.html, it displays immediately. If not found, it gracefully switches to vector fallback. -->
-          <img id="brand-logo-img" src="logo.png" alt="Fiscc Logo" class="w-full h-full object-contain" onerror="this.style.display='none'; document.getElementById('brand-logo-fallback').style.display='block';">
-          <div id="brand-logo-fallback" style="display:none; width: 100%; height: 100%;">
-            <svg class="w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 48L26 63L58 24L53 19L79 12L73 38L67 32L39 65L25 80L2 53L12 42L12 48Z" fill="var(--accent)"/>
-              <path d="M30 54L39 43V80H30V54Z" fill="var(--accent)" fill-opacity="0.9"/>
-              <path d="M43 38L52 27V80H43V38Z" fill="#64748b"/>
-            </svg>
-          </div>
-        </div>
+        <div class="flex items-center gap-3 cursor-pointer" onclick="showToast('Fiscc: Minimal Daily Log — Type naturally. Track instantly.')" title="Fiscc v3.2">
+          <!-- Vector Architectural Emblem: Shield Document with Checkmark & Flow Vectors -->
+          <svg class="fiscc-logo-symbol flex-shrink-0" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Document Shield Outline -->
+            <path d="M22 14H68L84 30V68L50 96L16 68V20L22 14Z" stroke="currentColor" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" style="color: var(--accent);"/>
+            <!-- Top Right Fold Notch -->
+            <path d="M68 14V30H84" stroke="currentColor" stroke-width="7.5" stroke-linejoin="round" stroke-linecap="round" style="color: var(--accent);"/>
+            <!-- Checkmark / Upward Vector Inside Shield -->
+            <path d="M16 48L30 62L62 30H46" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"/>
+            <path d="M46 30V44" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" style="color: var(--accent);"/>
+            <!-- Inner Transaction / Flow Arrow 1 -->
+            <circle cx="50" cy="48" r="3.5" fill="currentColor" style="color: var(--accent);"/>
+            <path d="M57 48H72M72 48L66 43M72 48L66 53" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"/>
+            <!-- Inner Transaction / Flow Arrow 2 -->
+            <circle cx="45" cy="65" r="3.5" fill="currentColor" style="color: var(--accent);"/>
+            <path d="M52 65H68M68 65L62 60M68 65L62 70" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"/>
+          </svg>
 
-        <!-- Brand Typographic Hierarchy -->
-        <div class="flex flex-col">
-          <span class="text-2xl sm:text-3xl font-bold tracking-tight font-sans leading-none" style="color: var(--text-main);">
-            Fiscc
-          </span>
-          <span class="text-[11px] sm:text-xs font-medium tracking-wide mt-1" style="color: var(--text-muted);">
-            Minimal Daily Log
-          </span>
-          <p class="text-[10px] sm:text-[11px] tracking-wide hidden sm:block mt-0.5" style="color: var(--text-faint);">
-            Type naturally. Track instantly.
-          </p>
+          <!-- Brand Text Lockup -->
+          <div class="flex flex-col">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight" style="color: var(--text-main);">
+              Fiscc: <span class="font-normal" style="color: var(--text-muted);">Minimal Daily Log</span>
+            </h1>
+            <p class="text-xs font-medium tracking-wide" style="color: var(--text-faint);">
+              Type naturally. Track instantly.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -290,6 +385,12 @@
           </span>
           <span id="sync-status-text">Local Mode</span>
         </div>
+
+        <!-- Quick Lock Button (Visible if App Lock is configured) -->
+        <button id="btn-quick-lock" class="hidden items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-full text-xs font-medium border transition duration-200" style="background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-main);" title="Lock Application Now">
+          <span>🔒</span>
+          <span class="hidden sm:inline">Lock</span>
+        </button>
 
         <!-- Scan / Receipt Button -->
         <button id="scan-receipt-btn" class="flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-full text-xs font-medium border transition duration-200" style="background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-main);" title="Scan or simulate physical receipt">
@@ -306,7 +407,7 @@
           <span class="hidden sm:inline">Audit</span>
         </button>
 
-        <!-- Settings Modal Trigger (Hosts Preferences & Version 2.2 Info) -->
+        <!-- Settings Modal Trigger (Hosts Preferences & Version 3.2 Info) -->
         <button id="btn-open-settings" class="flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-full text-xs font-medium border transition duration-200" style="background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-main);" title="Settings & Themes">
           <span>⚙️</span>
           <span>Settings</span>
@@ -346,8 +447,21 @@
             id="expense-omni-input" 
             rows="3"
             placeholder="e.g. Spent Rs 601 on 1st Nov on Patrol, lent 500 to Rahul yesterday, swiggy 450 today via UPI"
-            class="w-full text-sm sm:text-base rounded-xl p-3 sm:p-4 resize-none transition-all leading-relaxed"
+            class="w-full text-base sm:text-base rounded-xl p-3 sm:p-4 pr-10 resize-none transition-all leading-relaxed"
           ></textarea>
+          
+          <!-- Voice Dictation Button (Speech-to-Text) -->
+          <button 
+            type="button" 
+            id="btn-voice-dictate" 
+            class="absolute top-3 right-3 p-1.5 rounded-lg border transition hover:scale-105 active:scale-95" 
+            style="background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-muted);" 
+            title="Speak your expense (Voice Dictation)"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </button>
           
           <!-- Live Preview Detection Badge -->
           <div id="live-parse-badge" class="absolute bottom-2.5 left-2.5 text-[11px] font-mono px-2.5 py-0.5 rounded-full border hidden items-center gap-1.5 backdrop-blur-sm" style="background: var(--accent-soft); color: var(--accent); border-color: var(--accent);">
@@ -644,17 +758,43 @@
           </div>
         </div>
 
-        <!-- 5. ABOUT FISCC & VERSION INFO (Version Hosted Strictly Here) -->
+        <!-- 5. App Lock & Security (Face ID / Biometrics & PIN Lock) -->
+        <div class="pt-3 border-t" style="border-color: var(--border-subtle)">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <b class="text-sm block">App Lock & Security</b>
+              <span style="color: var(--text-muted);">Lock app with Face ID, Biometrics or PIN</span>
+            </div>
+            <input type="checkbox" id="setting-toggle-lock" class="w-4 h-4 rounded cursor-pointer" style="accent-color: var(--accent);">
+          </div>
+          <div id="lock-config-panel" class="space-y-2 mt-2 p-3 rounded-xl border" style="background: var(--bg-subtle); border-color: var(--border-subtle); display: none;">
+            <div>
+              <label class="block font-medium mb-1" style="color: var(--text-muted)">Passcode / PIN</label>
+              <input type="password" id="setting-lock-pin" class="w-full p-2 rounded-lg text-xs font-mono" placeholder="Set 4+ digit PIN or password">
+            </div>
+            <div class="flex items-center justify-between pt-1">
+              <span style="color: var(--text-muted);">Enable Face ID / Touch ID</span>
+              <input type="checkbox" id="setting-toggle-biometric" class="w-4 h-4 rounded cursor-pointer" style="accent-color: var(--accent);">
+            </div>
+            <div class="pt-2 flex justify-end">
+              <button type="button" id="btn-trigger-lock-now" class="px-3 py-1 rounded-lg border text-xs" style="border-color: var(--border-highlight); color: var(--text-main)">
+                🔒 Lock App Now
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. ABOUT FISCC & VERSION INFO (v3.2) -->
         <div class="pt-3 border-t" style="border-color: var(--border-subtle)">
           <div class="p-3.5 rounded-xl border space-y-1.5" style="background: var(--bg-subtle); border-color: var(--border-subtle)">
             <div class="flex justify-between items-center">
               <span class="font-serif font-semibold text-sm">Fiscc — Minimal Daily Log</span>
               <span class="font-mono text-[10px] px-2.5 py-0.5 rounded-full font-semibold border" style="background: var(--accent-soft); color: var(--accent); border-color: var(--accent)">
-                v2.3
+                v3.2
               </span>
             </div>
-            <p style="color: var(--text-muted);">“Type naturally. Track instantly.” Universal Omniparser &bull; Multi-Screen Adaptive Engine &bull; Dual Offline & Cloud Sync.</p>
-            <p class="font-mono text-[10px]" style="color: var(--text-faint);">Build: 2026.11 &bull; Version 2.3 Release</p>
+            <p style="color: var(--text-muted);">“Type naturally. Track instantly.” Universal Omniparser &bull; Voice Dictation &bull; Biometric & PIN Security &bull; Dual Offline & Cloud Sync.</p>
+            <p class="font-mono text-[10px]" style="color: var(--text-faint);">Build: 2026.11 &bull; Version 3.2 Master Release</p>
           </div>
         </div>
       </div>
@@ -776,11 +916,17 @@
           <label class="block font-medium mb-1">Password</label>
           <input type="password" id="auth-password" required minlength="6" class="w-full p-2 rounded-lg" placeholder="••••••••" autocomplete="current-password">
         </div>
-        <button type="submit" id="auth-submit-btn" class="w-full py-2.5 rounded-xl text-white font-medium cursor-pointer transition" style="background: var(--accent)">Sign In</button>
+        <div class="flex items-center justify-between text-xs pt-1">
+          <label class="flex items-center gap-2 cursor-pointer select-none" style="color: var(--text-muted)">
+            <input type="checkbox" id="auth-remember-me" class="w-4 h-4 rounded cursor-pointer" style="accent-color: var(--accent);" checked>
+            <span>Remember Me</span>
+          </label>
+          <a id="btn-forgot-pass" class="underline cursor-pointer" style="color: var(--accent);">Forgot password?</a>
+        </div>
+        <button type="submit" id="auth-submit-btn" class="w-full py-2.5 rounded-xl text-white font-medium cursor-pointer transition mt-2" style="background: var(--accent)">Sign In</button>
       </form>
       <div id="auth-error-msg" class="text-xs mt-3 p-2.5 rounded-lg leading-relaxed empty:hidden" style="background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger);"></div>
-      <div class="mt-4 pt-2 border-t flex justify-between text-xs" style="border-color: var(--border-subtle)">
-        <a id="btn-forgot-pass" class="underline cursor-pointer" style="color: var(--accent);">Forgot password?</a>
+      <div class="mt-4 pt-2 border-t flex justify-end text-xs" style="border-color: var(--border-subtle)">
         <a id="btn-close-auth" class="cursor-pointer" style="color: var(--text-faint);">Stay Local</a>
       </div>
     </div>
@@ -826,7 +972,7 @@
 
     const $ = id => document.getElementById(id);
 
-    // --- APPLICATION STATE (Fiscc v2.2) ---
+    // --- APPLICATION STATE (Fiscc v3.2) ---
     let S = {
       items: [],
       cur: "₹",
@@ -834,10 +980,17 @@
       settings: {
         enableIncome: false,
         showDues: true,
-        enableCap: false, // Default is OFF in v2.2
-        monthlyCap: 45000
+        enableCap: false,
+        monthlyCap: 45000,
+        enableLock: false,
+        lockPin: "",
+        enableBiometric: true
       }
     };
+
+    let isAppLocked = false;
+    let lastDeletedItem = null;
+    let activeCategoryFilter = null;
 
     const iso = d => {
       const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
@@ -867,7 +1020,42 @@
       $("toast-text").textContent = msg;
       t.classList.add("show");
       clearTimeout(t._timer);
-      t._timer = setTimeout(() => t.classList.remove("show"), 2500);
+      t._timer = setTimeout(() => t.classList.remove("show"), 2800);
+    }
+
+    function showUndoToast(msg, itemToRestore) {
+      lastDeletedItem = itemToRestore;
+      const t = $("toast");
+      t.innerHTML = `
+        <span class="w-2 h-2 rounded-full" style="background: var(--accent);"></span>
+        <span>${escapeHtml(msg)}</span>
+        <button id="btn-toast-undo" class="underline font-bold ml-2 cursor-pointer" style="color: var(--accent);">Undo</button>
+      `;
+      t.classList.add("show");
+      clearTimeout(t._timer);
+
+      const undoBtn = document.getElementById("btn-toast-undo");
+      if (undoBtn) {
+        undoBtn.onclick = () => {
+          if (lastDeletedItem) {
+            S.items.unshift(lastDeletedItem);
+            saveStorage();
+            render();
+            if (window.cloudSyncAdd) window.cloudSyncAdd([lastDeletedItem]);
+            lastDeletedItem = null;
+            t.classList.remove("show");
+            showToast("Restored entry");
+          }
+        };
+      }
+
+      t._timer = setTimeout(() => {
+        t.classList.remove("show");
+        t.innerHTML = `
+          <span class="w-2 h-2 rounded-full" style="background: var(--accent);"></span>
+          <span id="toast-text"></span>
+        `;
+      }, 5000);
     }
 
     // --- STORAGE MANAGEMENT ---
@@ -882,13 +1070,83 @@
             S.items = Array.isArray(parsed.items) ? parsed.items : [];
             S.cur = parsed.cur || "₹";
             S.theme = parsed.theme || "obsidian";
-            S.settings = Object.assign({ enableIncome: false, showDues: true, enableCap: false, monthlyCap: 45000 }, parsed.settings || {});
+            S.settings = Object.assign({ 
+              enableIncome: false, 
+              showDues: true, 
+              enableCap: false, 
+              monthlyCap: 45000,
+              enableLock: false,
+              lockPin: "",
+              enableBiometric: true
+            }, parsed.settings || {});
           }
         }
       } catch (e) {
         console.warn("Storage load warning", e);
       }
       applyTheme(S.theme || "obsidian");
+      initAppLock();
+    }
+
+    // --- APP LOCK & BIOMETRIC AUTH ENGINE ---
+    function initAppLock() {
+      if (!S.settings.enableLock || !S.settings.lockPin) {
+        $("btn-quick-lock").classList.add("hidden");
+        $("btn-quick-lock").classList.remove("inline-flex");
+        return;
+      }
+      $("btn-quick-lock").classList.remove("hidden");
+      $("btn-quick-lock").classList.add("inline-flex");
+
+      // Check if session is already unlocked in this browser tab
+      const isSessionUnlocked = sessionStorage.getItem("fiscc_session_unlocked") === "true";
+      if (!isSessionUnlocked) {
+        lockApp();
+      }
+    }
+
+    function lockApp() {
+      isAppLocked = true;
+      sessionStorage.removeItem("fiscc_session_unlocked");
+      $("app-lock-screen").classList.add("active");
+      $("lock-pin-input").value = "";
+      $("lock-error-msg").textContent = "";
+
+      const hasBiometric = S.settings.enableBiometric && window.PublicKeyCredential;
+      if (hasBiometric) {
+        $("lock-biometric-section").classList.remove("hidden");
+        triggerBiometricPrompt();
+      } else {
+        $("lock-biometric-section").classList.add("hidden");
+      }
+    }
+
+    function unlockApp() {
+      isAppLocked = false;
+      sessionStorage.setItem("fiscc_session_unlocked", "true");
+      $("app-lock-screen").classList.remove("active");
+      $("lock-error-msg").textContent = "";
+      showToast("App Unlocked");
+    }
+
+    async function triggerBiometricPrompt() {
+      if (!window.PublicKeyCredential) return;
+      try {
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        // Challenge platform authenticator (Touch ID, Face ID, Windows Hello)
+        await navigator.credentials.get({
+          publicKey: {
+            challenge: challenge,
+            timeout: 60000,
+            userVerification: "preferred"
+          }
+        });
+        unlockApp();
+      } catch (err) {
+        console.log("Biometric prompt dismissed or unverified, use PIN fallback.");
+      }
     }
 
     function saveStorage() {
@@ -1125,7 +1383,7 @@
 
       const items = parseExpenseText(val);
       if (!items.length) {
-        showToast("Couldn't find an amount. Try “Rs 601 on 1st Nov on Patrol”");
+        showToast("Couldn't find an amount. Try “Spent Rs 601 on 1st Nov on Patrol”");
         return;
       }
 
@@ -1144,10 +1402,15 @@
 
     // --- DELETE ACTION ---
     function removeEntry(id) {
+      const itm = S.items.find(x => x.id === id);
       S.items = S.items.filter(x => x.id !== id);
       saveStorage();
       render();
-      showToast("Entry removed");
+      if (itm) {
+        showUndoToast(`Removed "${itm.description}"`, itm);
+      } else {
+        showToast("Entry removed");
+      }
       if (window.cloudSyncDelete) window.cloudSyncDelete(id);
     }
 
@@ -1347,18 +1610,21 @@
       const maxVal = catRows.length ? catRows[0][1] : 1;
 
       $("category-breakdown-box").innerHTML = catRows.length
-        ? catRows.map(([c, v]) => `
-          <div class="flex items-center gap-3 text-xs">
-            <span class="w-28 truncate font-medium flex items-center gap-1.5">
-              <span>${CAT_ICONS[c] || "🏷️"}</span>
-              <span class="truncate">${escapeHtml(c)}</span>
-            </span>
-            <div class="flex-1 h-2 rounded-full overflow-hidden" style="background: var(--bg-subtle)">
-              <div class="h-full rounded-full transition-all duration-300" style="width: ${(v / maxVal) * 100}%; background: var(--accent);"></div>
+        ? catRows.map(([c, v]) => {
+          const isFiltered = activeCategoryFilter === c;
+          return `
+            <div class="flex items-center gap-3 text-xs cursor-pointer p-1 rounded-lg transition hover:bg-white/[0.04] ${isFiltered ? 'border border-teal-500/30' : ''}" onclick="toggleCategoryFilter('${escapeHtml(c)}')">
+              <span class="w-28 truncate font-medium flex items-center gap-1.5">
+                <span>${CAT_ICONS[c] || "🏷️"}</span>
+                <span class="truncate ${isFiltered ? 'font-bold' : ''}" style="color: ${isFiltered ? 'var(--accent)' : 'inherit'}">${escapeHtml(c)}</span>
+              </span>
+              <div class="flex-1 h-2 rounded-full overflow-hidden" style="background: var(--bg-subtle)">
+                <div class="h-full rounded-full transition-all duration-300" style="width: ${(v / maxVal) * 100}%; background: ${isFiltered ? 'var(--accent-hover)' : 'var(--accent)'};"></div>
+              </div>
+              <span class="w-20 text-right font-mono" style="color: var(--text-muted)">${fmt(v)}</span>
             </div>
-            <span class="w-20 text-right font-mono" style="color: var(--text-muted)">${fmt(v)}</span>
-          </div>
-        `).join("")
+          `;
+        }).join("")
         : '<div class="text-xs text-center py-2" style="color: var(--text-faint)">No expenses categorized for this month yet.</div>';
 
       // 6-Month Trajectory Chart
@@ -1367,6 +1633,18 @@
       // Filtered Transactions List
       renderLedger(monthItems, filterQuery);
     }
+
+    function toggleCategoryFilter(cat) {
+      if (activeCategoryFilter === cat) {
+        activeCategoryFilter = null;
+        showToast("Showing all categories");
+      } else {
+        activeCategoryFilter = cat;
+        showToast(`Filtered by ${cat}`);
+      }
+      render();
+    }
+    window.toggleCategoryFilter = toggleCategoryFilter;
 
     // --- 6-MONTH CHART RENDERER ---
     function renderChart(currY, currM) {
@@ -1414,6 +1692,11 @@
       const emptyEl = $("empty-state-view");
 
       let filtered = monthItems.sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0));
+      
+      if (activeCategoryFilter) {
+        filtered = filtered.filter(t => t.category === activeCategoryFilter);
+      }
+
       if (query.trim()) {
         const q = query.toLowerCase();
         filtered = filtered.filter(t => 
@@ -1474,52 +1757,126 @@
       URL.revokeObjectURL(url);
     }
 
-    $("btn-export-csv").onclick = () => {
-      if (!S.items.length) { showToast("Nothing to export yet."); return; }
-      const q = s => `"${String(s || '').replace(/"/g, '""')}"`;
-      const rows = [
-        ["Date", "Type", "Category", "Description", "Payment", "Amount", "Currency", "Borrower"],
-        ...S.items.map(i => [i.date, i.type || "expense", i.category, q(i.description), i.payment || "", i.amount, i.currency || S.cur, q(i.borrower || "")])
-      ];
-      downloadBlob(`Fiscc_Ledger_${vm}.csv`, rows.map(r => r.join(",")).join("\n"), "text/csv");
-      showToast("CSV Exported");
-    };
+    function initListeners() {
+      // Export CSV Statement
+      $("btn-export-csv").onclick = () => {
+        if (!S.items.length) {
+          showToast("No entries to export");
+          return;
+        }
+        const q = s => `"${String(s || '').replace(/"/g, '""')}"`;
+        const rows = [
+          ["Date", "Category", "Description", "Payment", "Amount", "Type", "Status"],
+          ...S.items.map(i => [i.date, q(i.category), q(i.description), q(i.payment || ""), i.amount, i.type || "expense", i.status || "completed"])
+        ];
+        downloadBlob(`Fiscc_Statement_${vm}.csv`, rows.map(r => r.join(",")).join("\n"), "text/csv");
+        showToast("CSV statement exported");
+      };
 
-    $("btn-backup-json").onclick = () => {
-      if (!S.items.length) { showToast("No items to backup."); return; }
-      downloadBlob("fiscc_backup_v2.3.json", JSON.stringify(S, null, 2), "application/json");
-      showToast("Backup saved");
-    };
+      // Backup JSON
+      $("btn-backup-json").onclick = () => {
+        downloadBlob(`Fiscc_Backup_${Date.now()}.json`, JSON.stringify(S, null, 2), "application/json");
+        showToast("Backup JSON exported");
+      };
 
-    $("btn-restore-json").onclick = () => $("restore-file-input").click();
-    $("restore-file-input").onchange = async e => {
-      const f = e.target.files[0];
-      if (!f) return;
-      try {
-        const parsed = JSON.parse(await f.text());
-        if (Array.isArray(parsed)) S.items = parsed;
-        else if (parsed && Array.isArray(parsed.items)) S = parsed;
-        saveStorage();
-        applyTheme(S.theme || "obsidian");
-        render();
-        showToast(`Restored ${S.items.length} items`);
-      } catch (err) {
-        showToast("Invalid JSON backup file");
-      }
-      e.target.value = "";
-    };
+      // Restore JSON
+      $("btn-restore-json").onclick = () => $("restore-file-input").click();
+      $("restore-file-input").onchange = async e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        try {
+          const parsed = JSON.parse(await f.text());
+          if (Array.isArray(parsed)) S.items = parsed;
+          else if (parsed && Array.isArray(parsed.items)) S = parsed;
+          saveStorage();
+          applyTheme(S.theme || "obsidian");
+          render();
+          showToast(`Restored ${S.items.length} items`);
+        } catch (err) {
+          showToast("Invalid JSON backup file");
+        }
+        e.target.value = "";
+      };
 
-    // --- SETUP EVENT LISTENERS ---
-    window.addEventListener("DOMContentLoaded", () => {
-      loadStorage();
+      // App Lock event handlers
+      $("btn-quick-lock").onclick = () => lockApp();
+      $("btn-trigger-lock-now").onclick = () => {
+        $("settings-modal").classList.remove("open");
+        lockApp();
+      };
+      $("btn-unlock-biometric").onclick = () => triggerBiometricPrompt();
+      $("lock-pin-form").onsubmit = e => {
+        if (e && e.preventDefault) e.preventDefault();
+        const pin = $("lock-pin-input").value.trim();
+        if (pin === S.settings.lockPin) {
+          unlockApp();
+        } else {
+          $("lock-error-msg").textContent = "Incorrect Passcode / PIN";
+          $("lock-pin-input").value = "";
+          $("lock-pin-input").focus();
+        }
+        return false;
+      };
 
-      // Quick tags container
+      // Category Suggestion Pills
       $("category-pills-container").innerHTML = Object.entries(CAT_ICONS)
         .map(([name, icon]) => `
           <button class="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs transition" style="background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-muted);" onclick="appendTag('${name}')">
             <span>${icon}</span> <span>${name}</span>
           </button>
         `).join("");
+
+      // Voice Dictation (Web Speech API)
+      const btnVoice = $("btn-voice-dictate");
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        const recognizer = new SpeechRecognition();
+        recognizer.continuous = false;
+        recognizer.interimResults = false;
+        recognizer.lang = navigator.language || "en-US";
+
+        let isListening = false;
+
+        btnVoice.onclick = () => {
+          if (isListening) {
+            recognizer.stop();
+            return;
+          }
+          try {
+            recognizer.start();
+            isListening = true;
+            btnVoice.style.color = "var(--accent)";
+            btnVoice.style.borderColor = "var(--accent)";
+            showToast("🎙️ Listening… Speak your expense");
+          } catch (e) {
+            console.warn("Speech recognition already running", e);
+          }
+        };
+
+        recognizer.onresult = event => {
+          const spokenText = event.results[0][0].transcript;
+          const input = $("expense-omni-input");
+          input.value = input.value ? `${input.value}, ${spokenText}` : spokenText;
+          updateLiveBadge();
+          input.focus();
+          showToast(`Heard: "${spokenText}"`);
+        };
+
+        recognizer.onerror = () => {
+          isListening = false;
+          btnVoice.style.color = "var(--text-muted)";
+          btnVoice.style.borderColor = "var(--border-subtle)";
+        };
+
+        recognizer.onend = () => {
+          isListening = false;
+          btnVoice.style.color = "var(--text-muted)";
+          btnVoice.style.borderColor = "var(--border-subtle)";
+        };
+      } else {
+        btnVoice.onclick = () => showToast("Voice recognition not supported in this browser");
+      }
 
       // Live parsing
       $("expense-omni-input").addEventListener("input", updateLiveBadge);
@@ -1565,13 +1922,23 @@
         $("setting-toggle-cap").checked = !!S.settings.enableCap;
         $("setting-cap-amount").value = S.settings.monthlyCap || 45000;
         $("cap-input-row").style.display = S.settings.enableCap ? "flex" : "none";
+
+        // Lock Settings
+        $("setting-toggle-lock").checked = !!S.settings.enableLock;
+        $("setting-lock-pin").value = S.settings.lockPin || "";
+        $("setting-toggle-biometric").checked = S.settings.enableBiometric !== false;
+        $("lock-config-panel").style.display = S.settings.enableLock ? "block" : "none";
+
         $("settings-modal").classList.add("open");
       };
       $("close-settings-x").onclick = () => $("settings-modal").classList.remove("open");
 
-      // Dynamic toggle for monthly cap input row
+      // Dynamic toggle for monthly cap & lock input row
       $("setting-toggle-cap").onchange = e => {
         $("cap-input-row").style.display = e.target.checked ? "flex" : "none";
+      };
+      $("setting-toggle-lock").onchange = e => {
+        $("lock-config-panel").style.display = e.target.checked ? "block" : "none";
       };
 
       // Theme Buttons
@@ -1589,10 +1956,22 @@
         S.settings.showDues = $("setting-toggle-dues").checked;
         S.settings.enableCap = $("setting-toggle-cap").checked;
         S.settings.monthlyCap = parseFloat($("setting-cap-amount").value) || 45000;
+
+        // Security Save
+        S.settings.enableLock = $("setting-toggle-lock").checked;
+        S.settings.lockPin = $("setting-lock-pin").value.trim();
+        S.settings.enableBiometric = $("setting-toggle-biometric").checked;
+
+        if (S.settings.enableLock && !S.settings.lockPin) {
+          showToast("Please enter a PIN to enable App Lock");
+          return;
+        }
+
         saveStorage();
+        initAppLock();
         $("settings-modal").classList.remove("open");
         render();
-        showToast("Preferences & Monthly Cap updated");
+        showToast("Preferences & Security saved");
       };
 
       // Receipt Scan Simulation Modal
@@ -1606,9 +1985,7 @@
         $("expense-omni-input").focus();
         showToast("Receipt auto-filled into input");
       };
-
-      render();
-    });
+    }
 
     function appendTag(name) {
       const inp = $("expense-omni-input");
@@ -1617,6 +1994,17 @@
       inp.focus();
       updateLiveBadge();
     }
+
+    // Expose functions globally for inline HTML click handlers
+    window.appendTag = appendTag;
+    window.settleDue = settleDue;
+    window.openEditModal = openEditModal;
+    window.removeEntry = removeEntry;
+
+    // Initialize application state and UI
+    loadStorage();
+    initListeners();
+    render();
   </script>
 
   <!-- =====================================================================
@@ -1653,6 +2041,11 @@
     // Optimistic cache check to eliminate the "Local Mode" flash
     const cachedEmail = localStorage.getItem("fiscc_auth_email");
     const isCachedLocal = localStorage.getItem("fiscc_is_local_user") === "true";
+    const rememberedEmail = localStorage.getItem("fiscc_remembered_email");
+
+    if (rememberedEmail && $("auth-email")) {
+      $("auth-email").value = rememberedEmail;
+    }
 
     if (cachedEmail) {
       if (isCachedLocal || isRestrictedEnv) {
@@ -1668,6 +2061,11 @@
 
     $("btn-open-auth").onclick = () => {
       $("auth-error-msg").innerHTML = "";
+      const rem = localStorage.getItem("fiscc_remembered_email");
+      if (rem) {
+        $("auth-email").value = rem;
+        $("auth-remember-me").checked = true;
+      }
       // If in sandbox, show informational guidance in modal
       if (isRestrictedEnv) {
         $("auth-error-msg").innerHTML = `
@@ -1842,8 +2240,16 @@
 
         const email = $("auth-email").value.trim();
         const pass = $("auth-password").value;
+        const rememberMe = $("auth-remember-me") ? $("auth-remember-me").checked : true;
 
         if (!email || !pass) return false;
+
+        // Remember Me Email Caching
+        if (rememberMe) {
+          localStorage.setItem("fiscc_remembered_email", email);
+        } else {
+          localStorage.removeItem("fiscc_remembered_email");
+        }
 
         $("auth-submit-btn").disabled = true;
         $("auth-submit-btn").textContent = isSignUp ? "Creating account…" : "Signing in…";
@@ -1873,7 +2279,6 @@
           console.warn("Auth error:", err);
 
           if (err.code === "auth/network-request-failed") {
-            // Handled when sandbox, CORS, or adblockers block identitytoolkit.googleapis.com
             $("auth-error-msg").innerHTML = `
               <div class="space-y-2">
                 <p><b>⚠️ Sandbox / Network Block (auth/network-request-failed):</b></p>
