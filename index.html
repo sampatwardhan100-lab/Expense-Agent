@@ -758,24 +758,27 @@
        ===================================================================== -->
   <div id="auth-modal" class="modal-overlay">
     <div class="modal-box">
-      <h3 id="auth-title" class="font-serif text-lg font-semibold">Sign In to Fiscc Cloud</h3>
+      <div class="flex justify-between items-center mb-1">
+        <h3 id="auth-title" class="font-serif text-lg font-semibold">Sign In to Fiscc Cloud</h3>
+        <button id="close-auth-x" class="text-sm p-1" style="color: var(--text-faint)">✕</button>
+      </div>
       <p class="text-xs mb-3" style="color: var(--text-muted)">Sync across phone and desktop automatically.</p>
       <div class="flex rounded-lg border p-1 mb-3 text-xs" style="background: var(--bg-subtle); border-color: var(--border-subtle)">
-        <button id="tab-signin" class="flex-1 py-1 rounded font-medium" style="background: var(--bg-surface); color: var(--text-main);">Sign In</button>
-        <button id="tab-signup" class="flex-1 py-1 rounded font-medium" style="color: var(--text-muted)">Create Account</button>
+        <button type="button" id="tab-signin" class="flex-1 py-1 rounded font-medium" style="background: var(--bg-surface); color: var(--text-main);">Sign In</button>
+        <button type="button" id="tab-signup" class="flex-1 py-1 rounded font-medium" style="color: var(--text-muted)">Create Account</button>
       </div>
-      <form id="auth-form" class="space-y-3 text-xs" onsubmit="return false;">
+      <form id="auth-form" class="space-y-3 text-xs">
         <div>
           <label class="block font-medium mb-1">Email</label>
-          <input type="email" id="auth-email" required class="w-full p-2 rounded-lg" placeholder="name@domain.com">
+          <input type="email" id="auth-email" required class="w-full p-2 rounded-lg" placeholder="name@domain.com" autocomplete="username">
         </div>
         <div>
           <label class="block font-medium mb-1">Password</label>
-          <input type="password" id="auth-password" required minlength="6" class="w-full p-2 rounded-lg" placeholder="••••••••">
+          <input type="password" id="auth-password" required minlength="6" class="w-full p-2 rounded-lg" placeholder="••••••••" autocomplete="current-password">
         </div>
-        <button type="submit" id="auth-submit-btn" class="w-full py-2 rounded-xl text-white font-medium" style="background: var(--accent)">Sign In</button>
+        <button type="submit" id="auth-submit-btn" class="w-full py-2.5 rounded-xl text-white font-medium cursor-pointer transition" style="background: var(--accent)">Sign In</button>
       </form>
-      <div id="auth-error-msg" class="text-xs mt-2" style="color: var(--danger)"></div>
+      <div id="auth-error-msg" class="text-xs mt-3 p-2.5 rounded-lg leading-relaxed empty:hidden" style="background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger);"></div>
       <div class="mt-4 pt-2 border-t flex justify-between text-xs" style="border-color: var(--border-subtle)">
         <a id="btn-forgot-pass" class="underline cursor-pointer" style="color: var(--accent);">Forgot password?</a>
         <a id="btn-close-auth" class="cursor-pointer" style="color: var(--text-faint);">Stay Local</a>
@@ -1623,11 +1626,61 @@
     const $ = id => document.getElementById(id);
     let isSignUp = false;
 
+    // Detect if running inside a sandboxed blob, preview iframe, or local file
+    const isRestrictedEnv = window.location.protocol === "file:" || 
+                            window.location.protocol === "blob:" || 
+                            window.location.origin === "null" ||
+                            window.location.hostname.includes("usercontent.goog");
+
+    // Local / Preview session login helper
+    function loginAsLocalSession(email) {
+      const localUid = "local_" + btoa(email).replace(/[^a-zA-Z0-9]/g, "").slice(0, 10);
+      const user = { email: email, uid: localUid, isLocalSession: true };
+      window.fisccCurrentUser = user;
+      localStorage.setItem("fiscc_auth_email", email);
+      localStorage.setItem("fiscc_is_local_user", "true");
+
+      $("sync-status-text").textContent = "Local Session";
+      $("sync-dot").style.background = "var(--accent)";
+      $("btn-open-auth").classList.add("hidden");
+      $("account-box").classList.remove("hidden");
+      $("account-box").classList.add("inline-flex");
+      $("user-badge").textContent = email;
+      $("auth-modal").classList.remove("open");
+      showToast(`Signed in as ${email} (Local Session)`);
+    }
+
+    // Optimistic cache check to eliminate the "Local Mode" flash
+    const cachedEmail = localStorage.getItem("fiscc_auth_email");
+    const isCachedLocal = localStorage.getItem("fiscc_is_local_user") === "true";
+
+    if (cachedEmail) {
+      if (isCachedLocal || isRestrictedEnv) {
+        loginAsLocalSession(cachedEmail);
+      } else {
+        $("sync-status-text").textContent = "Connecting…";
+        $("btn-open-auth").classList.add("hidden");
+        $("account-box").classList.remove("hidden");
+        $("account-box").classList.add("inline-flex");
+        $("user-badge").textContent = cachedEmail;
+      }
+    }
+
     $("btn-open-auth").onclick = () => {
-      $("auth-error-msg").textContent = "";
+      $("auth-error-msg").innerHTML = "";
+      // If in sandbox, show informational guidance in modal
+      if (isRestrictedEnv) {
+        $("auth-error-msg").innerHTML = `
+          <div class="p-2 rounded border" style="background: var(--bg-subtle); border-color: var(--border-subtle); color: var(--text-muted);">
+            <b>ℹ️ Preview Sandbox Detected:</b><br>
+            You are running inside a preview frame (<code>${window.location.protocol === 'blob:' ? 'blob preview' : window.location.hostname}</code>). External Google Auth requests may be restricted. You can sign in using a Local Session, or deploy to GitHub Pages for live cloud sync.
+          </div>
+        `;
+      }
       $("auth-modal").classList.add("open");
     };
     $("btn-close-auth").onclick = () => $("auth-modal").classList.remove("open");
+    if ($("close-auth-x")) $("close-auth-x").onclick = () => $("auth-modal").classList.remove("open");
     $("auth-modal").onclick = e => { if (e.target === $("auth-modal")) $("auth-modal").classList.remove("open"); };
 
     $("tab-signin").onclick = () => {
@@ -1638,6 +1691,7 @@
       $("tab-signup").style.color = "var(--text-muted)";
       $("auth-title").textContent = "Sign In to Fiscc Cloud";
       $("auth-submit-btn").textContent = "Sign In";
+      $("auth-error-msg").innerHTML = "";
     };
     $("tab-signup").onclick = () => {
       isSignUp = true;
@@ -1647,12 +1701,15 @@
       $("tab-signin").style.color = "var(--text-muted)";
       $("auth-title").textContent = "Create Fiscc Account";
       $("auth-submit-btn").textContent = "Create Account";
+      $("auth-error-msg").innerHTML = "";
     };
 
     try {
       const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js");
       const { 
         getAuth, 
+        setPersistence,
+        browserLocalPersistence,
         signInWithEmailAndPassword, 
         createUserWithEmailAndPassword, 
         signOut, 
@@ -1681,7 +1738,13 @@
       const auth = getAuth(app);
       const db = getFirestore(app);
 
-      let currentUser = null;
+      // Enforce local browser persistence when available
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (pErr) {
+        console.warn("Auth persistence notice:", pErr);
+      }
+
       let unsub = null;
 
       onAuthStateChanged(auth, async user => {
@@ -1691,11 +1754,15 @@
         }
 
         if (user && user.email) {
-          currentUser = user;
+          window.fisccCurrentUser = user;
+          localStorage.setItem("fiscc_auth_email", user.email);
+          localStorage.removeItem("fiscc_is_local_user");
+
           $("sync-status-text").textContent = "Cloud Synced";
           $("sync-dot").style.background = "var(--accent)";
-          $("btn-open-auth").style.display = "none";
-          $("account-box").style.display = "inline-flex";
+          $("btn-open-auth").classList.add("hidden");
+          $("account-box").classList.remove("hidden");
+          $("account-box").classList.add("inline-flex");
           $("user-badge").textContent = user.email;
 
           const userRef = collection(db, "users", user.uid, "expenses");
@@ -1707,21 +1774,33 @@
               S.items = cloudItems;
               saveStorage();
               render();
+            } else if (S.items.length > 0) {
+              window.cloudSyncAdd(S.items);
             }
-          }, err => console.warn("Firestore sync warning", err));
-        } else {
-          currentUser = null;
+          }, err => {
+            console.warn("Firestore sync warning", err);
+            if (err.code === "permission-denied") {
+              $("sync-status-text").textContent = "Rules Expired";
+              showToast("Firestore security rules need updating");
+            }
+          });
+        } else if (!window.fisccCurrentUser || !window.fisccCurrentUser.isLocalSession) {
+          window.fisccCurrentUser = null;
+          localStorage.removeItem("fiscc_auth_email");
+          localStorage.removeItem("fiscc_is_local_user");
           $("sync-status-text").textContent = "Local Mode";
-          $("btn-open-auth").style.display = "inline-flex";
-          $("account-box").style.display = "none";
+          $("btn-open-auth").classList.remove("hidden");
+          $("account-box").classList.add("hidden");
+          $("account-box").classList.remove("inline-flex");
           if (unsub) { unsub(); unsub = null; }
         }
       });
 
       window.cloudSyncAdd = async (items) => {
-        if (!currentUser || !currentUser.email) return;
+        const u = window.fisccCurrentUser;
+        if (!u || !u.email || u.isLocalSession || String(u.uid).startsWith("local_")) return;
         try {
-          const userRef = collection(db, "users", currentUser.uid, "expenses");
+          const userRef = collection(db, "users", u.uid, "expenses");
           for (const itm of items) {
             const { id, ...data } = itm;
             await addDoc(userRef, data);
@@ -1732,9 +1811,10 @@
       };
 
       window.cloudSyncTrigger = async () => {
-        if (!currentUser || !currentUser.email) return;
+        const u = window.fisccCurrentUser;
+        if (!u || !u.email || u.isLocalSession || String(u.uid).startsWith("local_")) return;
         try {
-          const userRef = collection(db, "users", currentUser.uid, "expenses");
+          const userRef = collection(db, "users", u.uid, "expenses");
           for (const itm of S.items) {
             if (String(itm.id).startsWith("fiscc_") || String(itm.id).startsWith("exp_")) {
               const { id, ...data } = itm;
@@ -1747,25 +1827,41 @@
       };
 
       window.cloudSyncDelete = async (id) => {
-        if (!currentUser || !currentUser.email || String(id).startsWith("fiscc_") || String(id).startsWith("exp_")) return;
+        const u = window.fisccCurrentUser;
+        if (!u || !u.email || u.isLocalSession || String(u.uid).startsWith("local_") || String(id).startsWith("fiscc_") || String(id).startsWith("exp_")) return;
         try {
-          await deleteDoc(doc(db, "users", currentUser.uid, "expenses", id));
+          await deleteDoc(doc(db, "users", u.uid, "expenses", id));
         } catch (e) {
           console.warn("Cloud delete failed", e);
         }
       };
 
-      $("auth-form").onsubmit = async () => {
+      // Form submit handler with automatic sandbox fallback
+      $("auth-form").onsubmit = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+
         const email = $("auth-email").value.trim();
         const pass = $("auth-password").value;
+
+        if (!email || !pass) return false;
+
         $("auth-submit-btn").disabled = true;
-        $("auth-error-msg").textContent = "";
+        $("auth-submit-btn").textContent = isSignUp ? "Creating account…" : "Signing in…";
+        $("auth-error-msg").innerHTML = "";
+
+        // If explicitly running in local file or restricted blob origin, offer direct login
+        if (window.location.protocol === "file:") {
+          $("auth-submit-btn").disabled = false;
+          $("auth-submit-btn").textContent = isSignUp ? "Create Account" : "Sign In";
+          loginAsLocalSession(email);
+          return false;
+        }
 
         try {
           if (isSignUp) {
             const cred = await createUserWithEmailAndPassword(auth, email, pass);
             if (S.items.length > 0 && cred.user) {
-              window.cloudSyncAdd(S.items);
+              await window.cloudSyncAdd(S.items);
             }
             showToast("Account created in Fiscc Cloud!");
           } else {
@@ -1774,10 +1870,52 @@
           }
           $("auth-modal").classList.remove("open");
         } catch (err) {
-          $("auth-error-msg").textContent = err.message.replace("Firebase: ", "");
+          console.warn("Auth error:", err);
+
+          if (err.code === "auth/network-request-failed") {
+            // Handled when sandbox, CORS, or adblockers block identitytoolkit.googleapis.com
+            $("auth-error-msg").innerHTML = `
+              <div class="space-y-2">
+                <p><b>⚠️ Sandbox / Network Block (auth/network-request-failed):</b></p>
+                <p style="color: var(--text-muted)">The preview sandbox (<code>${window.location.protocol === 'blob:' ? 'blob preview' : window.location.hostname}</code>) or a browser extension blocked outbound requests to Google Auth servers.</p>
+                <button type="button" id="btn-login-local-fallback" class="w-full mt-2 py-2 px-3 rounded-lg text-white font-medium text-xs shadow transition active:scale-95" style="background: var(--accent);">
+                  ⚡ Continue as ${escapeHtml(email)} (Local Session)
+                </button>
+                <p class="text-[10px]" style="color: var(--text-faint)">
+                  On GitHub Pages (<code>https://&lt;username&gt;.github.io</code>), live Firebase Cloud sync will connect directly.
+                </p>
+              </div>
+            `;
+            const fallbackBtn = $("btn-login-local-fallback");
+            if (fallbackBtn) {
+              fallbackBtn.onclick = () => loginAsLocalSession(email);
+            }
+          } else if (err.code === "auth/unauthorized-domain") {
+            $("auth-error-msg").innerHTML = `
+              <b>⚠️ Domain Not Authorized:</b><br>
+              The domain <code>${window.location.hostname}</code> is not yet whitelisted.<br>
+              Go to <a href="https://console.firebase.google.com/project/expense-agent-15e80/authentication/settings" target="_blank" class="underline font-bold">Firebase Console &rarr; Auth &rarr; Settings &rarr; Authorized Domains</a> and add <code>${window.location.hostname}</code>.
+            `;
+          } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+            $("auth-error-msg").innerHTML = `
+              Incorrect email or password.<br>
+              If you haven't registered this account yet, click <b>"Create Account"</b> above!
+            `;
+          } else if (err.code === "auth/email-already-in-use") {
+            $("auth-error-msg").innerHTML = `
+              An account with this email already exists.<br>
+              Please click <b>"Sign In"</b> above to log in.
+            `;
+          } else if (err.code === "auth/weak-password") {
+            $("auth-error-msg").textContent = "Password should be at least 6 characters.";
+          } else {
+            $("auth-error-msg").textContent = err.message ? err.message.replace("Firebase: ", "") : "Sign in failed.";
+          }
         } finally {
           $("auth-submit-btn").disabled = false;
+          $("auth-submit-btn").textContent = isSignUp ? "Create Account" : "Sign In";
         }
+        return false;
       };
 
       $("btn-forgot-pass").onclick = async () => {
@@ -1791,12 +1929,25 @@
           await sendPasswordResetEmail(auth, email);
           showToast("Password reset link sent to your email!");
         } catch (err) {
-          $("auth-error-msg").textContent = err.message.replace("Firebase: ", "");
+          if (err.code === "auth/network-request-failed") {
+            $("auth-error-msg").textContent = "Password reset requests are restricted in preview mode. Please use GitHub Pages.";
+          } else {
+            $("auth-error-msg").textContent = err.message.replace("Firebase: ", "");
+          }
         }
       };
 
       $("btn-sign-out").onclick = async () => {
-        await signOut(auth);
+        try {
+          await signOut(auth);
+        } catch (e) {}
+        window.fisccCurrentUser = null;
+        localStorage.removeItem("fiscc_auth_email");
+        localStorage.removeItem("fiscc_is_local_user");
+        $("sync-status-text").textContent = "Local Mode";
+        $("btn-open-auth").classList.remove("hidden");
+        $("account-box").classList.add("hidden");
+        $("account-box").classList.remove("inline-flex");
         showToast("Signed out to Local Mode");
       };
 
